@@ -24,37 +24,38 @@ int main() {
     char key = 'h';
     table db;
     char *filename = "database.txt";
-    open_table(&db, get_full_path(filename));
+    // open_table(&db, get_full_path(filename));
+    db = get_new_table();
+    print_table(&db);
+    // while(key != 'q')
+    // {
+    //     switch(key)
+    //     {
+    //         case 'h':
+    //             tutorial();
+    //             break;
 
-    while(key != 'q')
-    {
-        switch(key)
-        {
-            case 'h':
-                tutorial();
-                break;
+    //         case 'a': //add
+    //             break;
 
-            case 'a': //add
-                break;
+    //         case 'd': //delete
+    //             break;
 
-            case 'd': //delete
-                break;
+    //         case 'g': //get
+    //             break;
 
-            case 'g': //get
-                break;
+    //         case 'r': //rewrite
+    //             break;
 
-            case 'r': //rewrite
-                break;
+    //         case 's': //sort
+    //             break;
 
-            case 's': //sort
-                break;
-
-            case 'p': //print
-                print_table(&db);
-                break;
-        }
-        key = getchar();
-    }
+    //         case 'p': //print
+    //             print_table(&db);
+    //             break;
+    //     }
+    //     key = getchar();
+    // }
 
     // table a;
     // open_table(&a, get_full_path(filename));
