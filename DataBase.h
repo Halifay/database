@@ -9,6 +9,8 @@
 #include <cstdlib>
 #include <cstdio>
 
+int const str_max_size = 32;
+
 typedef struct entry_ {
     void **data = NULL;
     void *comp_field = NULL;
@@ -22,6 +24,8 @@ typedef struct table_ {
     int capacity = 0;
     entry *list = NULL;
 } table;
+
+void print_table(table *);
 
 table get_new_table()
 {
@@ -44,8 +48,16 @@ int is_int(table *db, int field)
     return strcmp(db->arg_types[field], "int") == 0;
 }
 
+//may be at help in future, but it is of no use now and does not work
+char *make_str_copy(char *origin)
+{
+    char *result = (char *)calloc(strlen(origin), sizeof(char *));
+
+    return result;
+}
+
 //to make new columns in a table (for construction of a new table)
-table make_new_column(table *db, char *title, char *type, void* value)
+void add_column(table *db, char *title, char *type, void* value)
 {
     db->arg_amt++;
     if(db ->arg_amt == 1)
@@ -60,6 +72,8 @@ table make_new_column(table *db, char *title, char *type, void* value)
     }
     db->titles[db->arg_amt - 1] = title;
     db->arg_types[db->arg_amt - 1] = type;
+
+    // assigning default value to existing entries
     for(int i = 0; i < db->size; i++)
     {
         if(db->arg_amt == 1)
@@ -67,19 +81,113 @@ table make_new_column(table *db, char *title, char *type, void* value)
         else
             db->list[i].data = (void**)realloc(db->list[i].data, db->arg_amt*sizeof(void **));
         db->list[i].data[db->arg_amt - 1] = value;
+        if(is_str(db, db->arg_amt - 1))
+            printf("%s\n", db->list[i].data[db->arg_amt - 1]);
+        else
+            printf("%d\n", *(int *)db->list[i].data[db->arg_amt - 1]);
+        // if(is_str(db, db->arg_amt-1))
+        // {
+        //     db->list[i].data[db->arg_amt - 1] = make_str_copy(value);
+        // }
     }
+    print_table(db);
+}
+
+void add_new_column(table *db)
+{
+    char *title, *type;
+    title = (char *)calloc(32, sizeof(char *));
+    void *value;
+    printf("Enter title for a new column: ");
+    scanf("\n%[^\n]s", title);
+    const char *typelist[] = {"int", "str"};
+    printf("Enter number of corresponding type\n");
+    int *typen = (int *)malloc(sizeof(int));
+    while(true) {
+        for (int i = 0; i < 2; i++) {
+            printf("%s - %d\n", typelist[i], i);
+        }
+        scanf("%d", typen);
+        if(*typen >= 0 && *typen < 2)
+            break;
+    }
+    type = (char *)typelist[*typen];
+    printf("Enter default value for this field in all existing entries: ");
+    if(*typen == 0)
+    {
+        int *input = (int *)malloc(sizeof(int));
+        scanf("%d", input);
+        value = (void *)input;
+        // printf("value is %d", *(int *)value);
+    }
+    if(*typen == 1)
+    {
+        char *input = (char *)calloc(str_max_size, sizeof(char *));
+        scanf("%s", input);
+        value = (void *)input;
+    }
+    add_column(db, title, type, value);
+    printf("New column has been successfully added to database\n");
+}
+
+// need to change this method for more safety
+void add_entry(table *db, entry new_entry)
+{
+    if(db->size == 0)
+    {
+        db->capacity = 10;
+        db->list = (entry *)calloc((db->size)*sizeof(entry), sizeof(entry));
+    }
+    db->size++;
+    if(db->size > db->capacity)
+    {
+        db->capacity*=2;
+        db->list = (entry *)realloc(db->list, db->capacity*sizeof(entry));
+    }
+    db->list[db->size-1] = new_entry;
+}
+
+entry make_new_entry(table *db)
+{
+    entry new_entry;
+    new_entry.data = (void **)calloc(db->arg_amt, sizeof(void **));
+    for(int i = 0; i < db->arg_amt; i++)
+    {
+        printf("Type %s (%s value) for a new entry: ", db->titles[i], db->arg_types[i]);
+        if(is_str(db, i))
+        {
+            new_entry.data[i] = calloc(str_max_size, sizeof(char *));
+            scanf("%s", (char *)(new_entry.data[i]));
+        }
+        if(is_int(db, i))
+        {
+            int *to_read = (int *)malloc(sizeof(int *));
+            scanf("%d", to_read); // (int *)(new_entry.data[i]));
+            new_entry.data[i] = (void *)(to_read);
+        }
+    }
+    return new_entry;
+}
+
+void add_new_entry(table *db)
+{
+    entry new_entry = make_new_entry(db);
+    add_entry(db, new_entry);
 }
 
 void open_table(table *db, char *filename)
 {
     FILE *file = fopen(filename, "r");
-    fscanf(file, "%d ", &(db->size));
     fscanf(file, "%d ", &(db->arg_amt));
+    fscanf(file, "%d\n", &(db->size));
     db->arg_types = (char **)calloc(db->arg_amt, sizeof(char **));
     db->titles = (char **)calloc(db->arg_amt, sizeof(char **));
     for(int i = 0; i < db->arg_amt; i++)
     {
-        fscanf(file, "%s %s ", db->titles[i], db->arg_types[i]);
+        db->arg_types[i] = (char *)calloc(str_max_size, sizeof(char *));
+        db->titles[i] = (char *)calloc(str_max_size, sizeof(char *));
+        fscanf(file, "%s %[^\n]s\n", db->arg_types[i], db->titles[i]);
+        // printf("%d:%s\n", i, db->arg_types[i]);
     }
     db->capacity = db->size;
     db->list = (entry *)calloc(db->capacity, sizeof(entry));
@@ -90,9 +198,9 @@ void open_table(table *db, char *filename)
         {
             if(is_str(db, j))
             {
-                db->list[i].data[j] = (void *) calloc(32, sizeof(char));
                 // I wonder if this trick would work
                 // But maybe it is even unnecessary
+                db->list[i].data[j] = calloc(str_max_size, sizeof(char *));
                 fscanf(file, "%s ", (char *) (db->list[i].data[j]));
             }
             if(is_int(db, j))
@@ -171,11 +279,11 @@ void sort_by_field(table *db, int field)
 void save_table(table *db, char *filename)
 {
     FILE *file = fopen(filename, "w");
-    fprintf(file, "%d", db->size);
-    fprintf(file, "%d ", db->arg_amt);
+    fprintf(file, "%d ", db->size);
+    fprintf(file, "%d\n", db->arg_amt);
     for(int i = 0; i < db->arg_amt; i++)
     {
-        fprintf(file, "%s %s ", db->titles[i], db->arg_types[i]);
+        fprintf(file, "%s %s\n", db->arg_types[i], db->titles[i]);
     }
     // fprintf(file, "\n");
     for(int i = 0; i < db->size; i++)
@@ -186,23 +294,6 @@ void save_table(table *db, char *filename)
             fprintf(file, "%s ", db->list[i].data[j]);
         }
     }
-}
-
-// need to change this method for more safety
-void add_entry(table *db, entry new_entry)
-{
-    if(db->size == 0)
-    {
-        db->capacity = 10;
-        db->list = (entry *)calloc((db->size)*sizeof(entry), sizeof(entry));
-    }
-    db->size++;
-    if(db->size > db->capacity)
-    {
-        db->capacity*=2;
-        db->list = (entry *)realloc(db->list, db->capacity*sizeof(entry));
-    }
-    db->list[db->size-1] = new_entry;
 }
 
 int find_entry(table *db, entry one)
@@ -258,6 +349,28 @@ table get_entries_by_field(table *db, void* field, int type)
     }
 }
 
+table get_entries(table *db)
+{
+    int type;
+    void *value;
+    printf("Enter number of corresponding column\n");
+    for(int i = 0; i < db->arg_amt; i++)
+    {
+        printf("%s - %d\n", db->titles[i], i);
+    }
+    scanf("%d", &type);
+    printf("Enter value of field (%s value): ", db->arg_types[type]);
+    if(is_str(db, type));
+    {
+        value = calloc(str_max_size, sizeof(char *));
+        scanf("%s", (char *)value);
+    }
+    if(is_int(db, type))
+    {
+        scanf("%d", (int *)value);
+    }
+    return get_entries_by_field(db, value, type);
+}
 
 void substitute_entry(table *db, entry before, entry after)
 {
@@ -269,6 +382,12 @@ void substitute_entry(table *db, entry before, entry after)
 int get_int_width(int field)
 {
     int res = 0;
+    if(field < 0)
+    {
+        field *= -1;
+        res++;
+    }
+
     while(field > 0)
     {
         res++;
@@ -299,7 +418,7 @@ int get_width(table *db, int entrynum, int field)
 
 void print_table(table *db)
 {
-    int number_width = (1<db->size?db->size:1);
+    int number_width = (1<db->size?get_int_width(db->size):1);
     int *widths = (int *)calloc(db->arg_amt, sizeof(int *));
 
     //counting all widths for fields in table format
@@ -316,6 +435,7 @@ void print_table(table *db)
             }
             if(is_int(db, i))
             {
+                // printf("width: %d\n", *(int *)db->list[j].data[i]);
                 int width = get_int_width(*(int *)db->list[j].data[i]);
                 if(widths[i] < width)
                     widths[i] = width;
@@ -334,7 +454,7 @@ void print_table(table *db)
     //printing entries by values in table format
     for(int i = 0; i < db->size; i++)//for each entry
     {
-        printf("||%*s|", number_width, "№");
+        printf("||%*d|", number_width, i + 1);
         entry ent = db->list[i];
         for(int j = 0; j < db->arg_amt; j++)//for each argument in entry
         {
@@ -344,7 +464,7 @@ void print_table(table *db)
             }
             if(is_int(db, j))
             {
-                printf("|%*d|", widths[j], *(int *)db->list[i].data[j]);
+                printf("|%*d|", widths[j], *((int *)(db->list[i].data[j])));
             }
         }
         printf("|\n");

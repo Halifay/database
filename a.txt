@@ -1,0 +1,7 @@
+3 3
+str name
+str surname
+str patronymic
+john smith tr 
+john smith johnovich 
+mikhail panov fedorovich 
