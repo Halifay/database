@@ -47,12 +47,12 @@ void table_menu(table *db)
             {
                 printf("Enter values for entry to delete\n");
                 entry slated = make_new_entry(db);
-                int pos = find_entry(db, slated);
+                int pos = find_entry(db, &slated);
                 if(pos == db->size)
                     printf("There is no such entry\n");
                 else
                 {
-                    delete_entry(db, slated);
+                    delete_entry(db, &slated);
                     printf("Entry has been deleted successfully\n");
                 }
                 break;
@@ -60,7 +60,6 @@ void table_menu(table *db)
 
             case 'g': // get entries
             {
-
                 table findings = get_entries(db);
                 print_table(&findings);
                 break;
@@ -68,11 +67,36 @@ void table_menu(table *db)
 
             case 'r': // rewrite entry
             {
+                printf("Which entry to substitute?\n");
+                entry before = make_new_entry(db);
+                printf("What should be a new entry?\n");
+                entry after = make_new_entry(db);
+                substitute_entry(db, &before, &after);
+                printf("Entry has been successfully rewritten\n");
                 break;
             }
 
             case 's': // sort table
             {
+                int field;
+                printf("Enter number of field to sort by\n");
+                for(int i = 0; i < db->arg_amt; i++)
+                {
+                    printf("%s - %d\n", db->titles[i], i);
+                }
+                scanf("%d", &field);
+                while(field < 0 || field >= db->arg_amt)
+                {
+                    printf("Invalid option '%d'. Please, try again: ", field);
+                    char checker = 'q';
+                    while(checker != '\n')
+                    {
+                        checker = getchar();
+                    }
+                    scanf("%d", &field);
+                }
+                sort_by_field(db, field);
+                printf("Database has been sorted by field %s\n", db->titles[field]);
                 break;
             }
 
@@ -83,7 +107,7 @@ void table_menu(table *db)
                 scanf("%s", name);
                 char* fullname = get_full_path(name);
                 save_table(db, fullname);
-                printf("Table has been saved in %s", fullname);
+                printf("Table has been saved in %s\n", fullname);
                 break;
             }
 

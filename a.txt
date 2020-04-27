@@ -1,7 +1,11 @@
-3 3
+5 4
 str name
 str surname
 str patronymic
-john smith tr 
-john smith johnovich 
-mikhail panov fedorovich 
+int rent
+
+john smith tr 10000 
+john smith johnovich 10000 
+mikhail panov fedorovich 10000 
+d d o 228 
+q q q 1 

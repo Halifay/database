@@ -25,7 +25,67 @@ typedef struct table_ {
     entry *list = NULL;
 } table;
 
+void destroy_table(table *);
+void destroy_entry(table *, entry *);
+entry copy_entry(table *, entry *);
 void print_table(table *);
+table get_new_table();
+int is_str(table *, int);
+int is_int(table *, int);
+char *make_str_copy(char *);
+void add_column(table *, char *, char *, void *);
+void add_new_column(table *);
+void add_entry(table *, entry *);
+entry make_new_entry(table *);
+void add_new_entry(table *);
+void open_table(table *, char *);
+entry get(table *, int);
+bool equal(table *, entry *, entry *);
+int int_comparison(const void *, const void *);
+int str_comparison(const void *, const void *);
+void sort_by_field(table *, int);
+void save_table(table *, char *);
+int find_entry(table *, entry *);
+void delete_entry(table *, entry *);
+table get_entries_by_field(table *, void *, int);
+table get_entries(table *);
+void substitute_entry(table *, entry *, entry *);
+int get_int_width(int);
+int get_str_width(char *);
+int get_width(table *, int, int);
+
+
+void destroy_table(table *db)
+{
+
+}
+
+//poryadok eto otstoy
+void destroy_entry(table *db, entry *slated)
+{
+
+}
+
+entry copy_entry(table *db, entry *one)
+{
+    entry result;
+    result.data = (void **)calloc(db->arg_amt, sizeof(void *));
+    for(int j = 0; j < db->arg_amt; j++)
+    {
+        if(is_str(db, j))
+        {
+            char * new_string = make_str_copy((char *)((*one).data[j]));
+            result.data[j] = new_string;
+        }
+        if(is_int(db, j))
+        {
+            result.data[j] = (void *)calloc(1, sizeof(int));
+            ((int *)result.data[j])[0] = ((int *)(*one).data[j])[0];
+        }
+    }
+    return result;
+}
+
 
 table get_new_table()
 {
@@ -48,10 +108,13 @@ int is_int(table *db, int field)
     return strcmp(db->arg_types[field], "int") == 0;
 }
 
-//may be at help in future, but it is of no use now and does not work
 char *make_str_copy(char *origin)
 {
     char *result = (char *)calloc(strlen(origin), sizeof(char *));
+    for(int i = 0; i < strlen(origin); i++)
+    {
+        result[i] = origin[i];
+    }
 
     return result;
 }
@@ -81,16 +144,7 @@ void add_column(table *db, char *title, char *type, void* value)
         else
             db->list[i].data = (void**)realloc(db->list[i].data, db->arg_amt*sizeof(void **));
         db->list[i].data[db->arg_amt - 1] = value;
-        if(is_str(db, db->arg_amt - 1))
-            printf("%s\n", db->list[i].data[db->arg_amt - 1]);
-        else
-            printf("%d\n", *(int *)db->list[i].data[db->arg_amt - 1]);
-        // if(is_str(db, db->arg_amt-1))
-        // {
-        //     db->list[i].data[db->arg_amt - 1] = make_str_copy(value);
-        // }
     }
-    print_table(db);
 }
 
 void add_new_column(table *db)
@@ -103,13 +157,16 @@ void add_new_column(table *db)
     const char *typelist[] = {"int", "str"};
     printf("Enter number of corresponding type\n");
     int *typen = (int *)malloc(sizeof(int));
-    while(true) {
-        for (int i = 0; i < 2; i++) {
+    while(true)
+    {
+        for (int i = 0; i < 2; i++)
+        {
             printf("%s - %d\n", typelist[i], i);
         }
         scanf("%d", typen);
         if(*typen >= 0 && *typen < 2)
             break;
+        printf("Incorrect number, please try again: ");
     }
     type = (char *)typelist[*typen];
     printf("Enter default value for this field in all existing entries: ");
@@ -118,7 +175,6 @@ void add_new_column(table *db)
         int *input = (int *)malloc(sizeof(int));
         scanf("%d", input);
         value = (void *)input;
-        // printf("value is %d", *(int *)value);
     }
     if(*typen == 1)
     {
@@ -131,7 +187,7 @@ void add_new_column(table *db)
 }
 
 // need to change this method for more safety
-void add_entry(table *db, entry new_entry)
+void add_entry(table *db, entry *new_entry)
 {
     if(db->size == 0)
     {
@@ -144,25 +200,25 @@ void add_entry(table *db, entry new_entry)
         db->capacity*=2;
         db->list = (entry *)realloc(db->list, db->capacity*sizeof(entry));
     }
-    db->list[db->size-1] = new_entry;
+    db->list[db->size-1] = copy_entry(db, new_entry);
 }
 
 entry make_new_entry(table *db)
 {
     entry new_entry;
-    new_entry.data = (void **)calloc(db->arg_amt, sizeof(void **));
+    new_entry.data = (void **)calloc(db->arg_amt, sizeof(void *));
     for(int i = 0; i < db->arg_amt; i++)
     {
         printf("Type %s (%s value) for a new entry: ", db->titles[i], db->arg_types[i]);
         if(is_str(db, i))
         {
-            new_entry.data[i] = calloc(str_max_size, sizeof(char *));
+            new_entry.data[i] = calloc(str_max_size, sizeof(char));
             scanf("%s", (char *)(new_entry.data[i]));
         }
         if(is_int(db, i))
         {
-            int *to_read = (int *)malloc(sizeof(int *));
-            scanf("%d", to_read); // (int *)(new_entry.data[i]));
+            int *to_read = (int *)malloc(sizeof(int));
+            scanf("%d", to_read);
             new_entry.data[i] = (void *)(to_read);
         }
     }
@@ -172,7 +228,7 @@ entry make_new_entry(table *db)
 void add_new_entry(table *db)
 {
     entry new_entry = make_new_entry(db);
-    add_entry(db, new_entry);
+    add_entry(db, &new_entry);
 }
 
 void open_table(table *db, char *filename)
@@ -180,12 +236,12 @@ void open_table(table *db, char *filename)
     FILE *file = fopen(filename, "r");
     fscanf(file, "%d ", &(db->arg_amt));
     fscanf(file, "%d\n", &(db->size));
-    db->arg_types = (char **)calloc(db->arg_amt, sizeof(char **));
-    db->titles = (char **)calloc(db->arg_amt, sizeof(char **));
+    db->arg_types = (char **)calloc(db->arg_amt, sizeof(char *));
+    db->titles = (char **)calloc(db->arg_amt, sizeof(char *));
     for(int i = 0; i < db->arg_amt; i++)
     {
-        db->arg_types[i] = (char *)calloc(str_max_size, sizeof(char *));
-        db->titles[i] = (char *)calloc(str_max_size, sizeof(char *));
+        db->arg_types[i] = (char *)calloc(str_max_size, sizeof(char));
+        db->titles[i] = (char *)calloc(str_max_size, sizeof(char));
         fscanf(file, "%s %[^\n]s\n", db->arg_types[i], db->titles[i]);
         // printf("%d:%s\n", i, db->arg_types[i]);
     }
@@ -200,16 +256,18 @@ void open_table(table *db, char *filename)
             {
                 // I wonder if this trick would work
                 // But maybe it is even unnecessary
-                db->list[i].data[j] = calloc(str_max_size, sizeof(char *));
+                db->list[i].data[j] = calloc(str_max_size, sizeof(char));
                 fscanf(file, "%s ", (char *) (db->list[i].data[j]));
             }
             if(is_int(db, j))
             {
                 //this too
+                db->list[i].data[j] = malloc(sizeof(int));
                 fscanf(file, "%d ", (int *)(db->list[i].data[j]));
             }
         }
     }
+    fclose(file);
 }
 
 entry get(table *db, int number)
@@ -219,34 +277,24 @@ entry get(table *db, int number)
     return (db->list[number]);
 }
 
-bool equal(table *db, entry first, entry second)
+bool equal(table *db, entry *first, entry *second)
 {
     bool ans = true;
     for(int i = 0; i < db->arg_amt; i++)
     {
         if(is_str(db, i))
-            ans &= (strcmp((char *)(first.data[i]), (char *)(second.data[i])) == 0);
+            ans &= (strcmp((char *)(first->data[i]), (char *)(second->data[i])) == 0);
         if(is_int(db, i))
-            ans &= (*(int *)(first.data[i]) == *(int *)(second.data[i]));
+            ans &= (*(int *)(first->data[i]) == *(int *)(second->data[i]));
     }
     return ans;
-}
-
-int greater(const void *elem1, const void *elem2)
-{
-    //CHECk IF THERE BRACKETS ARE NEEDED
-    //ps seems it works without additional brackets, but need to be careful.
-    //pps yeah it works because dereference has less sequence than cast
-    int f = *(int *)elem1;
-    int s = *(int *)elem2;
-    return(f > s);
 }
 
 int int_comparison(const void *elem1, const void *elem2)
 {
     entry f = *((entry *)elem1);
     entry s = *((entry *)elem2);
-    return greater(f.comp_field, s.comp_field);
+    return (*(int *)elem1 > *(int *)elem2);
 }
 
 int str_comparison(const void *elem1, const void *elem2)
@@ -273,35 +321,44 @@ void sort_by_field(table *db, int field)
         return;
     }
     //It must end before
-    assert(1 == 1);
+    assert(false);
 }
 
 void save_table(table *db, char *filename)
 {
     FILE *file = fopen(filename, "w");
-    fprintf(file, "%d ", db->size);
-    fprintf(file, "%d\n", db->arg_amt);
+    fprintf(file, "%d ", db->arg_amt);
+    fprintf(file, "%d\n", db->size);
     for(int i = 0; i < db->arg_amt; i++)
     {
         fprintf(file, "%s %s\n", db->arg_types[i], db->titles[i]);
     }
-    // fprintf(file, "\n");
+
     for(int i = 0; i < db->size; i++)
     {
         fprintf(file, "\n");
         for(int j = 0; j < db->arg_amt; j++)
         {
-            fprintf(file, "%s ", db->list[i].data[j]);
+            if(is_str(db, j))
+            {
+                fprintf(file, "%s ", (char *)db->list[i].data[j]);
+            }
+            if(is_int(db, j))
+            {
+                fprintf(file, "%d ", *(int *)db->list[i].data[j]);
+            }
         }
     }
+    fclose(file);
 }
 
-int find_entry(table *db, entry one)
+
+int find_entry(table *db, entry *one)
 {
     int number = db->size;
     for(int i = 0; i < db->size; i++)
     {
-        if(equal(db, one, db->list[i]))
+        if(equal(db, one, &(db->list[i])))
         {
             number = i;
             break;
@@ -310,7 +367,7 @@ int find_entry(table *db, entry one)
     return number;
 }
 
-void delete_entry(table *db, entry one)
+void delete_entry(table *db, entry *one)
 {
     int start = find_entry(db, one);
     if(start < db->size)
@@ -332,21 +389,23 @@ table get_entries_by_field(table *db, void* field, int type)
     {
         if(is_str(db, type))
         {
-            if(strcmp((char *)(db->list[i].data[type]), (char *)field))
+            if(strcmp((char *)(db->list[i].data[type]), (char *)field) == 0)
             {
-                // values in entry copied by reference!!!
-                // need to write copy function to copy by value!!!
-                add_entry(&result, db->list[i]);
+                add_entry(&result, &db->list[i]);
             }
         }
         if(is_int(db, type))
         {
             if(*(int *)(db->list[i].data[type]) == *(int *)(field))
             {
-                add_entry(&result, db->list[i]);
+                entry *to_add = (entry *)calloc(1, sizeof(entry));
+                *to_add = copy_entry(db, &db->list[i]);
+                add_entry(&result, to_add);
             }
         }
     }
+
+    return result;
 }
 
 table get_entries(table *db)
@@ -359,24 +418,36 @@ table get_entries(table *db)
         printf("%s - %d\n", db->titles[i], i);
     }
     scanf("%d", &type);
+    while(type < 0 || type >= db->arg_amt)
+    {
+        printf("Invalid option '%d'. Please, try again: ", type);
+        char checker = 'q';
+        while(checker != '\n')
+        {
+            checker = getchar();
+        }
+        scanf("%d", &type);
+    }
+
     printf("Enter value of field (%s value): ", db->arg_types[type]);
     if(is_str(db, type));
     {
-        value = calloc(str_max_size, sizeof(char *));
+        value = calloc(str_max_size, sizeof(char));
         scanf("%s", (char *)value);
     }
     if(is_int(db, type))
     {
+        value = malloc(sizeof(int));
         scanf("%d", (int *)value);
     }
     return get_entries_by_field(db, value, type);
 }
 
-void substitute_entry(table *db, entry before, entry after)
+void substitute_entry(table *db, entry *before, entry *after)
 {
     int pos = find_entry(db, before);
     if(pos < db->size)
-        db->list[pos] = after;
+        db->list[pos] = *after;
 }
 
 int get_int_width(int field)
@@ -403,7 +474,6 @@ int get_str_width(char * field)
     return strlen(field);
 }
 
-
 int get_width(table *db, int entrynum, int field)
 {
     if(is_str(db, field))
@@ -419,7 +489,9 @@ int get_width(table *db, int entrynum, int field)
 void print_table(table *db)
 {
     int number_width = (1<db->size?get_int_width(db->size):1);
-    int *widths = (int *)calloc(db->arg_amt, sizeof(int *));
+    int *widths = NULL;
+    //there is problem  with zero memory allocation
+    widths = (int *)calloc(db->arg_amt, sizeof(int));
 
     //counting all widths for fields in table format
     for(int i = 0; i < db->arg_amt; i++)
@@ -429,13 +501,12 @@ void print_table(table *db)
         {
             if(is_str(db, i))
             {
-                int width = get_str_width((char *)db->list[j].data[i]);
+                int width = get_str_width((char *)(db->list[j].data[i]));
                 if(widths[i] < width)
                     widths[i] = width;
             }
             if(is_int(db, i))
             {
-                // printf("width: %d\n", *(int *)db->list[j].data[i]);
                 int width = get_int_width(*(int *)db->list[j].data[i]);
                 if(widths[i] < width)
                     widths[i] = width;
