@@ -55,6 +55,7 @@ void table_menu(table *db)
                     delete_entry(db, &slated);
                     printf("Entry has been deleted successfully\n");
                 }
+                destroy_entry(db, &slated);
                 break;
             }
 
@@ -62,6 +63,7 @@ void table_menu(table *db)
             {
                 table findings = get_entries(db);
                 print_table(&findings);
+                destroy_table(&findings);
                 break;
             }
 
@@ -72,6 +74,8 @@ void table_menu(table *db)
                 printf("What should be a new entry?\n");
                 entry after = make_new_entry(db);
                 substitute_entry(db, &before, &after);
+                destroy_entry(db, &before);
+                destroy_entry(db, &after);
                 printf("Entry has been successfully rewritten\n");
                 break;
             }
@@ -108,6 +112,8 @@ void table_menu(table *db)
                 char* fullname = get_full_path(name);
                 save_table(db, fullname);
                 printf("Table has been saved in %s\n", fullname);
+                free(name);
+                free(fullname);
                 break;
             }
 
@@ -126,6 +132,8 @@ void table_menu(table *db)
 
         scanf("%s", key);
     }
+    destroy_table(db);
+    printf("Table closed\n");
 }
 
 void main_menu()

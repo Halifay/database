@@ -1,10 +1,11 @@
-4 4
+5 4
 str name
 str surname
 str patronymic
 int rent
+int rent info
 
-john smith tr 10000 
-john smith johnovich 10000 
-mikhail panov fedorovich 10000 
-d d o 228 
+john smith tr 10000 0 
+john smith johnovich 10000 0 
+mikhail panov fedorovich 10000 0 
+d d o 228 0 
