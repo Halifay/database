@@ -7,6 +7,8 @@
 #IncludeRegexTransform: 
 
 /home/mikhail/Garage/C/lab_9/DataBase.h
+wchar.h
+-
 assert.h
 -
 cstring
@@ -18,6 +20,8 @@ cstdio
 
 /home/mikhail/Garage/C/lab_9/main.cpp
 iostream
+-
+unistd.h
 -
 cstring
 -

@@ -1,11 +1,17 @@
 #include <iostream>
+#include <unistd.h>
 #include <cstring>
 #include "DataBase.h"
 
-const char *path = "/home/mikhail/Garage/C/lab_9/";
-
 char *get_full_path(char *filename)
 {
+    char *path = (char *)calloc(str_max_size*8, sizeof(char));
+    getcwd(path, str_max_size*8);
+    for(int i = strlen(path); path[i] != '/'; i--)
+        path[i] = '\0';
+    //if you've got issues with path to database
+    // uncomment and change the line bellow for your case
+    // path = "shnyaga/shnyajnaya/jizn/obschajnaya/
     char *ret = (char *)calloc(strlen(path) + strlen(filename) + 1, sizeof(char));
     strcat(ret, path);
     strcat(ret, filename);
@@ -45,17 +51,19 @@ void table_menu(table *db)
 
             case 'd': // delete an entry
             {
-                printf("Enter values for entry to delete\n");
-                entry slated = make_new_entry(db);
-                int pos = find_entry(db, &slated);
-                if(pos == db->size)
-                    printf("There is no such entry\n");
-                else
+                printf("Enter number of entry you want to delete\n");
+                clear_input();
+                int pos;
+                scanf("%d", &pos);
+                while(pos < 1 || pos > db->size)
                 {
-                    delete_entry(db, &slated);
-                    printf("Entry has been deleted successfully\n");
+                    clear_input();
+                    printf("Invalid number. Try again: ");
+                    scanf("%d", &pos);
                 }
-                destroy_entry(db, &slated);
+                pos--;
+                    delete_entry(db, pos);
+                    printf("Entry has been deleted successfully\n");
                 break;
             }
 
@@ -69,12 +77,20 @@ void table_menu(table *db)
 
             case 'r': // rewrite entry
             {
-                printf("Which entry to substitute?\n");
-                entry before = make_new_entry(db);
+                printf("Enter number of entry you want to rewrite: ");
+                clear_input();
+                int pos;
+                scanf("%d", &pos);
+                while(pos < 1 || pos > db->size)
+                {
+                    clear_input();
+                    printf("Invalid number. Try again: ");
+                    scanf("%d", &pos);
+                }
+                pos--;
                 printf("What should be a new entry?\n");
                 entry after = make_new_entry(db);
-                substitute_entry(db, &before, &after);
-                destroy_entry(db, &before);
+                substitute_entry(db, pos, &after);
                 destroy_entry(db, &after);
                 printf("Entry has been successfully rewritten\n");
                 break;
@@ -129,7 +145,7 @@ void table_menu(table *db)
                 break;
             }
         }
-
+        clear_input();
         scanf("%s", key);
     }
     destroy_table(db);
@@ -158,7 +174,13 @@ void main_menu()
                 printf("Type name of file to open: ");
                 char *filename = (char *)calloc(str_max_size, sizeof(char *));
                 scanf("%s", filename);
-                open_table(&db, get_full_path(filename));
+                if(open_table(&db, get_full_path(filename)))
+                {
+                    printf("Can not open file %s\n", get_full_path(filename));
+                    break;
+                }
+                printf("successfully opened file %s\n", get_full_path(filename));
+                free(filename);
                 table_menu(&db);
                 break;
             }
@@ -181,6 +203,8 @@ void main_menu()
 }
 
 int main() {
+    // char *q = "абв";
+    // printf("%d\n", get_str_width(q));
     main_menu();
     return 0;
 }

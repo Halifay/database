@@ -4,6 +4,7 @@
 #ifndef LAB_9_DATABASE_H
 #define LAB_9_DATABASE_H
 
+#include <wchar.h>
 #include <assert.h>
 #include <cstring>
 #include <cstdlib>
@@ -25,6 +26,7 @@ typedef struct table_ {
     entry *list = NULL;
 } table;
 
+void clear_input();
 void destroy_table(table *);
 void destroy_entry(table *, entry *);
 entry copy_entry(table *, entry *);
@@ -38,7 +40,7 @@ void add_new_column(table *);
 void add_entry(table *, entry *);
 entry make_new_entry(table *);
 void add_new_entry(table *);
-void open_table(table *, char *);
+int open_table(table *, char *);
 entry get(table *, int);
 bool equal(table *, entry *, entry *);
 int int_comparison(const void *, const void *);
@@ -46,14 +48,20 @@ int str_comparison(const void *, const void *);
 void sort_by_field(table *, int);
 void save_table(table *, char *);
 int find_entry(table *, entry *);
-void delete_entry(table *, entry *);
+void delete_entry(table *, int);
 table get_entries_by_field(table *, void *, int);
 table get_entries(table *);
-void substitute_entry(table *, entry *, entry *);
+void substitute_entry(table *, int, entry *);
 int get_int_width(int);
 int get_str_width(char *);
 int get_width(table *, int, int);
 
+//reads out all characters from standard input
+void clear_input()
+{
+    int c;
+    while((c = getchar()) != '\n' && c != EOF);
+}
 
 //two functions for freeing memory from entries and databases
 void destroy_table(table *db)
@@ -62,8 +70,8 @@ void destroy_table(table *db)
     {
         destroy_entry(db, &db->list[i]);
     }
-    // if(db->list != NULL)
-    //     free(db->list);
+    if(db->list != NULL)
+        free(db->list);
 
     for(int i = 0; i < db->arg_amt; i++)
     {
@@ -78,13 +86,12 @@ void destroy_table(table *db)
 }
 
 //sends entry with given number to a better world
-void delete_entry(table *db, entry *one)
+void delete_entry(table *db, int start)
 {
     //why did the entry cross the road?
-     int start = find_entry(db, one);
      if(start < db->size)
      {
-         destroy_entry(db, &db->list[find_entry(db, one)]);
+         destroy_entry(db, &db->list[start]);
          db->size--;
      }
 
@@ -185,7 +192,6 @@ void add_column(table *db, char *title, char *type, void* value)
             db->list[i].data = (void**)realloc(db->list[i].data, db->arg_amt*sizeof(void **));
         if(is_str(db, db->arg_amt - 1))
         {
-            // db->list[i].data[db->arg_amt - 1]
             db->list[i].data[db->arg_amt - 1] = make_str_copy((char *)value);
         }
         if(is_int(db, db->arg_amt - 1))
@@ -218,9 +224,7 @@ void add_new_column(table *db)
         if(typen >= 0 && typen < 2)
             break;
         printf("Incorrect number, please try again: ");
-        char cleaner = 'q';
-        while(cleaner != '\n')
-            scanf("%c", &cleaner);
+        clear_input();
     }
     type = (char *)typelist[typen];
     printf("Enter default value for this field: ");
@@ -228,14 +232,11 @@ void add_new_column(table *db)
     {
         value = malloc(sizeof(int));
         scanf("%d", (int *)value);
-        // value = (void *)input;
     }
     if(typen == 1)
     {
-        // char *input = (char *)calloc(str_max_size, sizeof(char *));
         value = calloc(str_max_size, sizeof(char));
         scanf("%s", (char *)value);
-        // value = (void *)input;
     }
     add_column(db, title, type, value);
     printf("New column has been successfully added to database\n");
@@ -261,6 +262,7 @@ void add_entry(table *db, entry *new_entry)
     db->list[db->size-1] = copy_entry(db, new_entry);
 }
 
+//Interface for creating one entry according to existing database fields
 entry make_new_entry(table *db)
 {
     entry new_entry;
@@ -277,7 +279,6 @@ entry make_new_entry(table *db)
         {
             new_entry.data[i] = malloc(sizeof(int));
             scanf("%d", (int *)new_entry.data[i]);
-            // new_entry.data[i] = (void *)(to_read);
         }
     }
     return new_entry;
@@ -290,9 +291,11 @@ void add_new_entry(table *db)
     destroy_entry(db, &new_entry);
 }
 
-void open_table(table *db, char *filename)
+int open_table(table *db, char *filename)
 {
     FILE *file = fopen(filename, "r");
+    if(file == NULL)
+        return 1;
     fscanf(file, "%d ", &(db->arg_amt));
     fscanf(file, "%d\n", &(db->size));
     db->arg_types = (char **)calloc(db->arg_amt, sizeof(char *));
@@ -302,7 +305,6 @@ void open_table(table *db, char *filename)
         db->arg_types[i] = (char *)calloc(str_max_size, sizeof(char));
         db->titles[i] = (char *)calloc(str_max_size, sizeof(char));
         fscanf(file, "%s %[^\n]s\n", db->arg_types[i], db->titles[i]);
-        // printf("%d:%s\n", i, db->arg_types[i]);
     }
     db->capacity = db->size;
     db->list = (entry *)calloc(db->capacity, sizeof(entry));
@@ -329,6 +331,7 @@ void open_table(table *db, char *filename)
         }
     }
     fclose(file);
+    return 0;
 }
 
 // the most useless function here
@@ -358,7 +361,7 @@ int int_comparison(const void *elem1, const void *elem2)
 {
     entry f = *((entry *)elem1);
     entry s = *((entry *)elem2);
-    return (*(int *)elem1 > *(int *)elem2);
+    return (*(int *)f.comp_field - *(int *)s.comp_field);
 }
 
 // char * comparator for qsort
@@ -465,8 +468,6 @@ table get_entries_by_field(table *db, void* field, int type)
         {
             if(*(int *)(db->list[i].data[type]) == *(int *)(field))
             {
-                // entry *to_add = (entry *)calloc(1, sizeof(entry));
-                // *to_add = copy_entry(db, &db->list[i]);
                 add_entry(&result, &db->list[i]);
             }
         }
@@ -489,16 +490,13 @@ table get_entries(table *db)
     while(type < 0 || type >= db->arg_amt)
     {
         printf("Invalid option '%d'. Please, try again: ", type);
-        char checker = 'q';
-        while(checker != '\n')
-        {
-            checker = getchar();
-        }
+        clear_input();
         scanf("%d", &type);
     }
 
     printf("Enter value of field (%s value): ", db->arg_types[type]);
-    if(is_str(db, type));
+    clear_input();
+    if(is_str(db, type))
     {
         value = calloc(str_max_size, sizeof(char));
         scanf("%s", (char *)value);
@@ -514,10 +512,10 @@ table get_entries(table *db)
 }
 
 //trying to find a given entry in database and rewrite it
-void substitute_entry(table *db, entry *before, entry *after)
+void substitute_entry(table *db, int pos, entry *after)
 {
-    int pos = find_entry(db, before);
-    delete_entry(db, &db->list[pos]);
+    //pos--; //find_entry(db, before);
+    destroy_entry(db, &db->list[pos]);
     if(pos < db->size)
         db->list[pos] = copy_entry(db, after);
 }
@@ -542,22 +540,49 @@ int get_int_width(int field)
     return res;
 }
 
-int get_str_width(char * field)
-{
-    return strlen(field);
+//returns hom much bytes after this byte belongs to the same character (if it is first byte)
+// may and will throw errors if used on middle bytes of utf8 characters
+int utf8_added_length(char *s) {
+    //this function must not be here but I just can't leave it alone in other header
+    int value = *s;
+    value = ((unsigned int)value) % 256;
+    if (value < 128)
+        return 0; // regular ASCII byte
+    assert(value > 128+64); // continuation byte, invalid code point
+    if (value < 128+64+32)
+        return 1; // code-point encoded on 2 bytes
+    if (value < 128+64+32+16)
+        return 2; // code-point encoded on 3 bytes
+    if (value < 128+64+32+16+8)
+        return 3; // code-point encoded on 4 bytes
+        assert(false); // NO INVALID POINTERS IN MY CODE!!!
 }
 
-//function for pretty print of database on the screen
+//returns quantity of utf8 characters in string
+int get_str_width(char * field)
+{
+    int russians = 0;
+    for(int i = 0; i < strlen(field); i++)
+    {
+        int to_add = utf8_added_length(&field[i]);
+        russians += to_add;
+        i += to_add;
+    }
+
+    return ((int)strlen(field) - russians);
+}
+
+//function beautifully displays database on the screen
 void print_table(table *db)
 {
     int number_width = (1<db->size?get_int_width(db->size):1);
     int *widths = NULL;
     widths = (int *)calloc(db->arg_amt, sizeof(int));
 
-    for(int i = 0; i < db->arg_amt; i++)
-    {
-        printf("%s, ", db->arg_types[i]);
-    }
+    // for(int i = 0; i < db->arg_amt; i++)
+    // {
+    //     printf("%s, ", db->arg_types[i]);
+    // }
     printf("\n");
     //counting all widths for fields in table format
     for(int i = 0; i < db->arg_amt; i++) // for each argument
@@ -588,7 +613,8 @@ void print_table(table *db)
     printf("||%*s|", number_width, "№");
     for(int i = 0; i < db->arg_amt; i++)
     {
-            printf("|%*s|", widths[i], (char *)db->titles[i]);
+            printf("|%*s%s|", widths[i] - get_str_width(db->titles[i]),
+                    "", (char *)db->titles[i]);
     }
     printf("|\n");
 
@@ -600,7 +626,8 @@ void print_table(table *db)
         {
             if(is_str(db, j))
             {
-                printf("|%*s|", widths[j], (char *)db->list[i].data[j]);
+                printf("|%*s%s|", widths[j] - get_str_width((char *)db->list[i].data[j]),
+                        "", (char *)db->list[i].data[j]);
             }
             if(is_int(db, j))
             {
@@ -609,6 +636,8 @@ void print_table(table *db)
         }
         printf("|\n");
     }
+    if(db->size == 0)
+        printf("No entries\n");
 }
 //I hope you are ok after reading so much shitty code
 //take care
