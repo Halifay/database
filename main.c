@@ -1,6 +1,5 @@
-#include <iostream>
 #include <unistd.h>
-#include <cstring>
+#include <string.h>
 #include "DataBase.h"
 
 char *get_full_path(char *filename)
